@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KG Query API Tester</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e;min-height:100vh}
+  .topbar{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);color:#fff;padding:18px 32px;display:flex;align-items:center;gap:12px}
+  .topbar h1{font-size:1.25rem;font-weight:600}
+  .topbar .sub{font-size:0.8rem;opacity:.65;margin-left:auto}
+  .layout{display:grid;grid-template-columns:1fr 420px;gap:24px;max-width:1300px;margin:24px auto;padding:0 24px}
+  .card{background:#fff;border-radius:12px;box-shadow:0 1px 8px rgba(0,0,0,.07);overflow:hidden}
+  .card-header{padding:16px 20px;background:#f8f9fa;border-bottom:1px solid #e9ecef;font-weight:600;font-size:.95rem;display:flex;align-items:center;gap:8px}
+  .card-body{padding:20px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-full{grid-column:1/-1}
+  label{display:block;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6c757d;margin-bottom:5px}
+  input,select,textarea{width:100%;padding:9px 12px;border:1.5px solid #dee2e6;border-radius:7px;font-size:.9rem;color:#212529;background:#fff;transition:border-color .15s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#4361ee}
+  textarea{resize:vertical;min-height:70px}
+  .hint{font-size:.73rem;color:#6c757d;margin-top:3px}
+  .section-divider{grid-column:1/-1;border:none;border-top:1px solid #e9ecef;margin:4px 0}
+  .section-title{grid-column:1/-1;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#adb5bd;padding:4px 0}
+  .checkbox-group{display:flex;flex-wrap:wrap;gap:12px;padding:6px 0}
+  .checkbox-item{display:flex;align-items:center;gap:6px;font-size:.875rem;cursor:pointer}
+  .checkbox-item input{width:auto}
+  .btn-run{width:100%;padding:13px;background:linear-gradient(135deg,#4361ee,#3a0ca3);color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;margin-top:18px;transition:opacity .2s}
+  .btn-run:hover{opacity:.9}
+  .btn-run:disabled{opacity:.5;cursor:not-allowed}
+  /* Right panel */
+  .right-panel{display:flex;flex-direction:column;gap:24px}
+  /* Log console */
+  .log-box{background:#1e1e2e;border-radius:8px;padding:14px;height:320px;overflow-y:auto;font-family:monospace;font-size:.78rem;color:#cdd6f4;line-height:1.6}
+  .log-line.pass {color:#a6e3a1}
+  .log-line.fail {color:#f38ba8}
+  .log-line.warn {color:#f9e2af}
+  .log-line.info {color:#89dceb}
+  /* Progress */
+  .progress-wrap{margin-top:12px}
+  .progress-bar{background:#e9ecef;border-radius:8px;height:8px;overflow:hidden}
+  .progress-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,#4361ee,#7209b7);transition:width .3s}
+  .progress-label{font-size:.8rem;color:#6c757d;margin-top:4px;text-align:right}
+  /* Score pills */
+  .score-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+  .score-pill{background:#f8f9fa;border-radius:8px;padding:10px 4px;text-align:center}
+  .score-pill .n{font-size:1.4rem;font-weight:700}
+  .score-pill .l{font-size:.65rem;text-transform:uppercase;color:#6c757d}
+  /* Download buttons */
+  .dl-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .btn-dl{padding:10px;border:none;border-radius:8px;font-size:.875rem;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;display:block}
+  .btn-html{background:#0d6efd;color:#fff}
+  .btn-txt {background:#6c757d;color:#fff}
+  .btn-dl:disabled,.btn-dl.disabled{opacity:.4;pointer-events:none}
+  .status-badge{display:inline-block;padding:3px 12px;border-radius:12px;font-size:.75rem;font-weight:600}
+  .status-idle   {background:#e9ecef;color:#6c757d}
+  .status-running{background:#cfe2ff;color:#084298}
+  .status-done   {background:#d1e7dd;color:#0a3622}
+  .status-error  {background:#f8d7da;color:#842029}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span>⚡</span>
+  <h1>KG Query API Tester</h1>
+  <span class="sub">Auto-generates &amp; runs GraphQL + REST test suites · Exports HTML &amp; TXT reports</span>
+</div>
+
+<div class="layout">
+
+  <!-- LEFT: Form -->
+  <div class="card">
+    <div class="card-header">🧪 Test Configuration</div>
+    <div class="card-body">
+      <form id="testForm">
+        <div class="form-grid">
+
+          <!-- Session Info -->
+          <div class="section-title form-full">Session Info</div>
+
+          <div>
+            <label>Jira Ticket ID</label>
+            <input id="jira_ticket" type="text" placeholder="DEV-123456">
+          </div>
+          <div>
+            <label>PR Details <span style="font-weight:400">(GitHub URL)</span></label>
+            <input id="pr_details" type="text" placeholder="https://github.com/collibra/dgc-core/pull/20823">
+          </div>
+          <div>
+            <label>Jira API Token <span style="font-weight:400">(optional — fetches ticket description)</span></label>
+            <input id="jira_token" type="password" placeholder="your-jira-api-token" autocomplete="off">
+          </div>
+          <div class="form-full">
+            <label>Additional Notes</label>
+            <textarea id="notes" placeholder="Any context, known issues, or points to note ..."></textarea>
+          </div>
+
+          <hr class="section-divider">
+          <div class="section-title form-full">Environment</div>
+
+          <div class="form-full">
+            <label>Environment</label>
+            <select id="env_select" onchange="onEnvChange()">
+              <option value="">— Select environment —</option>
+              <option value="dev-aws">dev-aws</option>
+              <option value="dev-gcp">dev-gcp</option>
+              <option value="uat-gcp">uat-gcp</option>
+              <option value="prod-aws">prod-aws</option>
+              <option value="prod-gcp">prod-gcp</option>
+              <option value="custom">Custom (enter below)</option>
+            </select>
+          </div>
+          <div>
+            <label>GraphQL Endpoint URL <span style="font-weight:400">(optional if custom payload has endpoint)</span></label>
+            <input id="graphql_url" type="url" placeholder="https://kg-query.{env}.cp.collibra-ops.com/graphql">
+          </div>
+          <div>
+            <label>REST Base URL <span style="font-weight:400">(optional — skips REST comparison if empty)</span></label>
+            <input id="rest_url" type="url" placeholder="https://kg-query.{env}.cp.collibra-ops.com/rest/knowledgeGraph/v1">
+          </div>
+          <div>
+            <label>Tenant ID <span style="font-weight:400">(optional)</span></label>
+            <input id="tenant_id" type="text" placeholder="abec8cfb-43c0-4951-b6e4-652ebb622d7f">
+          </div>
+
+          <hr class="section-divider">
+          <div class="section-title form-full">Test Data</div>
+
+          <div>
+            <label>Asset ID <span style="font-weight:400">(optional)</span></label>
+            <input id="asset_id" type="text" placeholder="019cf612-d915-76f5-a0f8-e95292b739a2">
+          </div>
+          <div>
+            <label>Asset Type <span style="font-weight:400">(optional)</span></label>
+            <input id="asset_type" type="text" placeholder="BusinessTerm" value="BusinessTerm">
+            <div class="hint">e.g. BusinessTerm, Acronym, DataAttribute</div>
+          </div>
+          <div>
+            <label>Relation Type (publicId) <span style="font-weight:400">(optional)</span></label>
+            <input id="relation_type" type="text" placeholder="BusinessTermSynonymBusinessTerm">
+          </div>
+          <div>
+            <label>Target Types (comma-separated) <span style="font-weight:400">(optional)</span></label>
+            <input id="target_types" type="text" placeholder="BusinessTerm, Acronym">
+            <div class="hint">e.g. BusinessTerm, Acronym — used for P-01/P-02/P-03 variants</div>
+          </div>
+
+          <div class="form-full">
+            <label>Custom GraphQL Payload <span style="font-weight:400">(optional)</span></label>
+            <textarea id="custom_payload" rows="6" placeholder='{"endpoint":"https://kg-query.dev-aws.cp.collibra-ops.com/graphql","query":"{ outgoingRelations(assetId: \"...\") { relationType { publicId } targets { id } } }'></textarea>
+            <div class="hint">Paste a JSON with <code>query</code> (required) and optionally <code>endpoint</code> to override the GraphQL URL for this case. Runs as CUSTOM-01 at the top of the suite.</div>
+          </div>
+
+          <hr class="section-divider">
+          <div class="section-title form-full">Credentials</div>
+
+          <div>
+            <label>Username</label>
+            <input id="username" type="text" placeholder="admin" autocomplete="username" required>
+          </div>
+          <div>
+            <label>Password</label>
+            <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" required>
+          </div>
+          <div class="form-full">
+            <label>Anthropic API Key <span style="font-weight:400">(optional — enables AI-driven test generation)</span></label>
+            <input id="anthropic_api_key" type="password" placeholder="sk-ant-…" autocomplete="off">
+            <div class="hint">When provided, Claude analyses your PR, Jira, notes, schema and payload to generate tests dynamically. Without it, falls back to schema-driven generation.</div>
+          </div>
+
+          <hr class="section-divider">
+          <div class="section-title form-full">Test Suite</div>
+
+          <div class="form-full">
+            <div class="checkbox-group">
+              <label class="checkbox-item"><input type="checkbox" id="run_positive" checked> Positive test cases (P-01 … P-16)</label>
+              <label class="checkbox-item"><input type="checkbox" id="run_negative" checked> Negative test cases (N-01 … N-11)</label>
+              <label class="checkbox-item"><input type="checkbox" id="run_schema" checked> Schema field compatibility tests</label>
+              <label class="checkbox-item"><input type="checkbox" id="run_rest_comparison" checked> Compare with REST ground truth</label>
+            </div>
+          </div>
+
+        </div><!-- /form-grid -->
+
+        <button type="submit" class="btn-run" id="runBtn">▶ Run All Tests</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- RIGHT: Live output + results -->
+  <div class="right-panel">
+
+    <!-- Status -->
+    <div class="card">
+      <div class="card-header">
+        📊 Results
+        <span id="statusBadge" class="status-badge status-idle" style="margin-left:auto">Idle</span>
+      </div>
+      <div class="card-body">
+
+        <div class="score-row">
+          <div class="score-pill"><div class="n" id="s-total">—</div><div class="l">Total</div></div>
+          <div class="score-pill"><div class="n" id="s-pass" style="color:#1a7f3c">—</div><div class="l">Pass ✅</div></div>
+          <div class="score-pill"><div class="n" id="s-fail" style="color:#c0392b">—</div><div class="l">Fail ❌</div></div>
+          <div class="score-pill"><div class="n" id="s-warn" style="color:#d68910">—</div><div class="l">Warn ⚠️</div></div>
+          <div class="score-pill"><div class="n" id="s-bugs" style="color:#c0392b">—</div><div class="l">Bugs 🐛</div></div>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+          <div class="progress-label" id="progressLabel">0 / 0</div>
+        </div>
+
+        <div class="dl-row">
+          <a id="dlHtml" class="btn-dl btn-html disabled" href="#">⬇ Download HTML Report</a>
+          <a id="dlTxt"  class="btn-dl btn-txt  disabled" href="#">⬇ Download TXT Report</a>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Live Log -->
+    <div class="card">
+      <div class="card-header">📋 Live Log</div>
+      <div class="card-body" style="padding:0">
+        <div class="log-box" id="logBox">
+          <div class="log-line info">Ready. Fill in the form and click Run.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const ENVS = {{ envs|tojson }};
+let currentSid = null;
+let totalTests = 0;
+let doneTests  = 0;
+
+function onEnvChange() {
+  const key = document.getElementById('env_select').value;
+  if (!key || key === 'custom') return;
+  const env = ENVS[key];
+  if (env) {
+    document.getElementById('graphql_url').value = env.graphql;
+    document.getElementById('rest_url').value    = env.rest;
+  }
+}
+
+function logLine(msg, cls='info') {
+  const box = document.getElementById('logBox');
+  const div = document.createElement('div');
+  div.className = `log-line ${cls}`;
+  div.textContent = msg;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function classifyLog(msg) {
+  if (msg.includes('PASS'))  return 'pass';
+  if (msg.includes('FAIL') || msg.includes('FATAL')) return 'fail';
+  if (msg.includes('WARN'))  return 'warn';
+  return 'info';
+}
+
+function updateScores(data) {
+  document.getElementById('s-total').textContent = data.total ?? '—';
+  document.getElementById('s-pass').textContent  = data.passed ?? '—';
+  document.getElementById('s-fail').textContent  = data.failed ?? '—';
+  document.getElementById('s-warn').textContent  = data.warned ?? '—';
+  document.getElementById('s-bugs').textContent  = data.bugs ?? '—';
+  doneTests = data.total || 0;
+  if (totalTests > 0) {
+    const pct = Math.round(doneTests / totalTests * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = `${doneTests} / ${totalTests}`;
+  }
+}
+
+function setStatus(s) {
+  const el = document.getElementById('statusBadge');
+  el.className = `status-badge status-${s}`;
+  el.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+document.getElementById('testForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    graphql_url:        document.getElementById('graphql_url').value,
+    rest_url:           document.getElementById('rest_url').value,
+    asset_id:           document.getElementById('asset_id').value,
+    asset_type:         document.getElementById('asset_type').value,
+    relation_type:      document.getElementById('relation_type').value,
+    target_types:       document.getElementById('target_types').value,
+    custom_payload:     document.getElementById('custom_payload').value,
+    username:           document.getElementById('username').value,
+    password:           document.getElementById('password').value,
+    tenant_id:          document.getElementById('tenant_id').value,
+    jira_ticket:        document.getElementById('jira_ticket').value,
+    jira_token:         document.getElementById('jira_token').value,
+    anthropic_api_key:  document.getElementById('anthropic_api_key').value,
+    pr_details:         document.getElementById('pr_details').value,
+    notes:              document.getElementById('notes').value,
+    run_positive:       document.getElementById('run_positive').checked,
+    run_negative:       document.getElementById('run_negative').checked,
+    run_schema:         document.getElementById('run_schema').checked,
+    run_rest_comparison:document.getElementById('run_rest_comparison').checked,
+  };
+
+  // Basic validation
+  if (!payload.graphql_url || !payload.username || !payload.password) {
+    alert('Please fill in: GraphQL URL, Username and Password.');
+    return;
+  }
+
+  // Reset UI
+  document.getElementById('logBox').innerHTML = '';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressLabel').textContent = '0 / 0';
+  ['s-total','s-pass','s-fail','s-warn','s-bugs'].forEach(id => document.getElementById(id).textContent = '—');
+  document.getElementById('dlHtml').classList.add('disabled');
+  document.getElementById('dlTxt').classList.add('disabled');
+  document.getElementById('runBtn').disabled = true;
+  setStatus('running');
+  logLine('Starting test run ...', 'info');
+
+  try {
+    const res = await fetch('/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      logLine('Error: ' + (data.error || res.statusText), 'fail');
+      setStatus('error');
+      document.getElementById('runBtn').disabled = false;
+      return;
+    }
+    currentSid = data.session_id;
+
+    // Estimate total tests
+    let est = 0;
+    if (payload.run_positive) est += 16;
+    if (payload.run_negative) est += 11;
+    if (payload.run_schema)   est += 10;
+    totalTests = est;
+    document.getElementById('progressLabel').textContent = `0 / ${est}`;
+
+    // Connect to SSE stream
+    const evtSrc = new EventSource(`/stream/${currentSid}`);
+    evtSrc.onmessage = (ev) => {
+      const msg = ev.data;
+      if (msg === '__DONE__') {
+        evtSrc.close();
+        finalise();
+      } else if (msg !== '__KEEPALIVE__') {
+        logLine(msg, classifyLog(msg));
+        doneTests++;
+        if (totalTests > 0) {
+          const pct = Math.min(Math.round(doneTests / totalTests * 100), 99);
+          document.getElementById('progressFill').style.width = pct + '%';
+          document.getElementById('progressLabel').textContent = `${doneTests} / ${totalTests}`;
+        }
+      }
+    };
+    evtSrc.onerror = () => {
+      evtSrc.close();
+      finalise();
+    };
+  } catch (err) {
+    logLine('Network error: ' + err.message, 'fail');
+    setStatus('error');
+    document.getElementById('runBtn').disabled = false;
+  }
+});
+
+async function finalise() {
+  // Fetch final status
+  const res  = await fetch(`/status/${currentSid}`);
+  const data = await res.json();
+  updateScores(data);
+
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('progressLabel').textContent = `${data.total} / ${data.total}`;
+
+  setStatus(data.status === 'done' ? 'done' : 'error');
+
+  const dlHtml = document.getElementById('dlHtml');
+  const dlTxt  = document.getElementById('dlTxt');
+  dlHtml.href = `/download/html/${currentSid}`;
+  dlTxt.href  = `/download/txt/${currentSid}`;
+  dlHtml.classList.remove('disabled');
+  dlTxt.classList.remove('disabled');
+
+  document.getElementById('runBtn').disabled = false;
+
+  const bugs = data.bugs || 0;
+  const msg = `✅ Done — ${data.passed} passed, ${data.failed} failed, ${data.warned} warned, ${bugs} bug(s) found.`;
+  logLine(msg, bugs > 0 || data.failed > 0 ? 'warn' : 'pass');
+}
+</script>
+</body>
+</html>
